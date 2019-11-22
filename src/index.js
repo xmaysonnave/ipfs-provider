@@ -14,11 +14,9 @@ async function getIpfs (opts) {
     tryWindow: true,
     permissions: {},
     tryApi: true,
-    apiIpfsOpts: {
-      defaultApiAddress: '/ip4/127.0.0.1/tcp/5001',
-      apiAddress: null,
-      IpfsApi: null
-    },
+    defaultApiAddress: '/ip4/127.0.0.1/tcp/5001',
+    apiAddress: null,
+    IpfsApi: null,
     tryJsIpfs: false,
     jsIpfsOpts: {},
     ipfsConnectionTest: (ipfs) => {
@@ -27,14 +25,11 @@ async function getIpfs (opts) {
     }
   }
 
-  if (opts && opts.apiIpfsOpts && opts.apiIpfsOpts.apiAddress) {
-    opts.apiIpfsOpts.apiAddress = validateProvidedApiAddress(opts.apiIpfsOpts.apiAddress)
+  if (opts && opts.apiAddress) {
+    opts.apiAddress = validateProvidedApiAddress(opts.apiAddress)
   }
 
   opts = Object.assign({}, defaultOpts, opts)
-  opts.permissions = Object.assign({}, defaultOpts.permissions, opts.permissions)
-  opts.apiIpfsOpts = Object.assign({}, defaultOpts.apiIpfsOpts, opts.apiIpfsOpts)
-  opts.jsIpfsOpts = Object.assign({}, defaultOpts.jsIpfsOpts, opts.jsIpfsOpts)
 
   const { ipfsConnectionTest } = opts
 
@@ -50,11 +45,8 @@ async function getIpfs (opts) {
   }
 
   if (opts.tryApi) {
-    const { apiIpfsOpts } = opts
+    const { IpfsApi, apiAddress, defaultApiAddress } = opts
     const { location } = root
-    const apiAddress = apiIpfsOpts.apiAddress
-    const defaultApiAddress = apiIpfsOpts.defaultApiAddress
-    const IpfsApi = apiIpfsOpts.IpfsApi
     const res = await tryApi({ apiAddress, defaultApiAddress, location, IpfsApi, ipfsConnectionTest })
     if (res) return res
   }
