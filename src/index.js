@@ -1,82 +1,66 @@
 'use strict'
 
 const root = require('window-or-global')
-const multiaddr = require('multiaddr')
+const mergeOptions = require('merge-options')
 
 const tryWebExt = require('./providers/webext')
 const tryWindow = require('./providers/window-ipfs')
-const tryApi = require('./providers/ipfs-http-api')
+const tryHttpClient = require('./providers/http-client')
 const tryJsIpfs = require('./providers/js-ipfs')
 
-async function getIpfs (opts) {
-  const defaultOpts = {
-    tryWebExt: true,
-    tryWindow: true,
-    permissions: {},
-    tryApi: true,
-    defaultApiAddress: '/ip4/127.0.0.1/tcp/5001',
-    apiAddress: null,
-    IpfsApi: null,
-    tryJsIpfs: false,
-    jsIpfsOpts: {},
-    ipfsConnectionTest: (ipfs) => {
-      // ipfs connection is working if can we fetch the empty directtory.
-      return ipfs.get('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn')
+const defaultGlobalOpts = {
+  connectionTest: (ipfs) => {
+    // ipfs connection is working if can we fetch the empty directtory.
+    return ipfs.get('QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn')
+  }
+}
+
+const makeProvider = (fn, defaults = {}) => {
+  return (options = {}) => {
+    return (globalOpts) => {
+      options = mergeOptions(defaultGlobalOpts, defaults, globalOpts, options)
+      return fn(options)
     }
   }
+}
 
-  if (opts && opts.apiAddress) {
-    opts.apiAddress = validateProvidedApiAddress(opts.apiAddress)
-  }
-
-  opts = Object.assign({}, defaultOpts, opts)
-
-  const { ipfsConnectionTest } = opts
-
-  if (opts.tryWebExt) {
-    const res = await tryWebExt({ root, ipfsConnectionTest })
-    if (res) return res
-  }
-
-  if (opts.tryWindow) {
-    const { permissions } = opts
-    const res = await tryWindow({ root, permissions, ipfsConnectionTest })
-    if (res) return res
-  }
-
-  if (opts.tryApi) {
-    const { IpfsApi, apiAddress, defaultApiAddress } = opts
+const providers = {
+  httpClient: makeProvider((options) => {
     const { location } = root
-    const res = await tryApi({ apiAddress, defaultApiAddress, location, IpfsApi, ipfsConnectionTest })
-    if (res) return res
-  }
+    return tryHttpClient({ httpClient, location, ...options })
+  }, {
+    defaultApiAddress: '/ip4/127.0.0.1/tcp/5001',
+    apiAddress: null
+  }),
+  windowIpfs: makeProvider(options => {
+    return tryWindow({ root, ...options })
+  }),
+  jsIpfs: makeProvider(options => {
+    return tryJsIpfs(options)
+  }),
+  webExt: makeProvider(options => {
+    return tryWebExt({ root, ...options })
+  })
+}
 
-  if (opts.tryJsIpfs) {
-    const { getJsIpfs, jsIpfsOpts } = opts
-    const res = await tryJsIpfs({ jsIpfsOpts, getJsIpfs, ipfsConnectionTest })
-    if (res) return res
+const defaultProviders = [
+  providers.windowIpfs(),
+  providers.httpClient()
+]
+
+async function getIpfs ({ providers = defaultProviders, ...options } = {}) {
+  for (const provider of providers) {
+    try {
+      const res = await provider(options)
+      if (res) return res
+    } catch (_) {
+      // provider failed, move to the next one
+    }
   }
 }
 
-function validateProvidedApiAddress (address) {
-  if (address && !isMultiaddress(address)) {
-    // `address` is not a valid multiaddr
-    return null
-  }
-  return address
+module.exports = {
+  getIpfs,
+  providers,
+  makeProvider
 }
-
-function isMultiaddress (addr) {
-  if (addr === null || addr === undefined || typeof addr === 'undefined') {
-    return false
-  }
-
-  try {
-    multiaddr(addr)
-    return true
-  } catch (_) {
-    return false
-  }
-}
-
-module.exports = getIpfs

@@ -5,88 +5,203 @@
 [![Build Status](https://flat.badgen.net/travis/ipfs-shipyard/ipfs-provider)](https://travis-ci.com/ipfs-shipyard/ipfs-provider)
 [![Dependency Status](https://david-dm.org/ipfs-shipyard/ipfs-provider.svg?style=flat-square)](https://david-dm.org/ipfs-shipyard/ipfs-provider)
 
-> Connect to IPFS via an available provider.
+> This module tries to connect to IPFS via multiple [providers](#providers).  
+> It is a general-purpose replacement for [ipfs-redux-bundle](https://github.com/ipfs-shipyard/ipfs-redux-bundle).
 
-This module tries to connect to IPFS via multiple providers, in order:
+- [Install](#install)
+- [Usage](#usage)
+- [Examples](#examples)
+- [Providers](#providers)
+  - [`httpClient`](#httpclient)
+  - [`jsIpfs`](#jsipfs)
+  - [`windowIpfs`](#windowipfs)
+  - [`webExt`](#webext)
+<!-- TODO: improve this API  - [create our own!](#creating-a-provider) -->
+- [Test](#test)
 
-- `webext` looks for an instance in the [background page of a WebExtension](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/extension/getBackgroundPage) (used only in browser extensions, not regular pages).
-- [`window.ipfs`](https://github.com/ipfs-shipyard/ipfs-companion/blob/master/docs/window.ipfs.md) proxy in the current page (provided by the [IPFS Companion](https://github.com/ipfs-shipyard/ipfs-companion) browser extension).
-- [`js-ipfs-http-client`](https://github.com/ipfs/js-ipfs-http-client) with either a user provided `apiAddress`, the current origin, or the default address (`/ip4/127.0.0.1/tcp/5001`).
-- [`js-ipfs`](https://github.com/ipfs/js-ipfs) spawns an in process instance of IPFS (**disabled by default:** see [Enable js-ipfs](#enable-js-ipfs) for more info).
-
-
-This is a port of the [ipfs-redux-bundle](https://github.com/ipfs-shipyard/ipfs-redux-bundle).
 
 ## Install
 
-```sh
-> npm install ipfs-provider
+```console
+$ npm install ipfs-provider
 ```
 
 ## Usage
 
 ```js
-import getIpfs from 'ipfs-provider'
+const { getIpfs, providers } = require('ipfs-provider')
+const { httpClient, jsIpfs, windowIpfs, webExt } = providers
+
+const { ipfs, provider } = await getIpfs({
+  providers: [ // these are the defaults (the order matters)
+    windowIpfs(),
+    httpClient()
+    // disabled by default: jsIpfs(), webExt()
+  ]
+})
+```
+
+- `ipfs` – returned IPFS API instance
+- `provider` – a string with a name of the first successful provider.  
+   - built-in names match constants from `providers`: `httpClient`, `jsIpfs`, `windowIpfs` and `webExt`.
+
+
+## Examples
+
+See [`examples/`](./examples) for sample code and demonstration of advanced fallback strategies.
+
+## Providers
+
+You can customize the order of the providers by passing a different array order to the `providers` array.
+
+
+For example, if you want to try `httpClient` and then `windowIpfs`, you should run it like this:
+
+```js
+const { getIpfs, providers } = require('ipfs-provider')
+const { httpClient, windowIpfs } = providers
 
 const { ipfs, provider } = await getIpfs({
   // These are the defaults:
-  tryWebExt: true,    // set false to bypass WebExtension verification
-  tryWindow: true,    // set false to bypass window.ipfs verification
-  permissions: {}     // set the window.ipfs options you want if tryWindow is true
-  tryApi: true,       // set false to bypass js-ipfs-http-client verification
-  apiAddress: null    // set this to use an api in that address if tryApi is true
-  tryJsIpfs: false,   // set true to attempt js-ipfs initialisation
-  getJsIpfs: null,    // must be set to a js-ipfs instance if tryJsIpfs is true
-  jsIpfsOpts: {}      // set the js-ipfs options you want if tryJsIpfs is true
+  providers: [
+    httpClient(),
+    windowIpfs()
+  ]
 })
 ```
 
-- `ipfs` is the running IPFS instance.
-- `provider` is a string representing the chosen provider, either: `WEBEXT`, `WINDOW_IPFS`, `IPFS_HTTP_API` or `JS_IPFS`.
+#### Global options
 
-### Enable js-ipfs
-
-To enable `js-ipfs`, pass the following options:
+There are options that can be passed to each provider and global ones. However, you can always override the global ones by passing the same one for a provider. Here is the list of global options:
 
 ```js
 const { ipfs, provider } = await getIpfs({
-  tryJsIpfs: true,
-  getJsIpfs: () => import('ipfs'),
-  jsIpfsOpts: { /* advanced config */ }
+  providers: [ /* ... */ ],
+  connectionTest: () => { /* function to test the connection to IPFS */ }
 })
 ```
 
-- `tryJsIpfs` should be set to `true`.
-- `getJsIpfs` should be a function that returns a promise that resolves with a `JsIpfs` constructor. This works well with [dynamic `import()`](https://developers.google.com/web/updates/2017/11/dynamic-import), so you can lazily load js-ipfs when it is needed.
-- `jsIpfsOpts` should be an object which specifies [advanced configurations](https://github.com/ipfs/js-ipfs#ipfs-constructor) to the node.
+Please keep in mind that all of these have defaults and you **do not** need to specify them.
 
-### Enable window.ipfs
+### `httpClient`
 
-`window.ipfs` is an experimental feature provided by [ipfs-companion](https://github.com/ipfs/ipfs-companion) browser extension. It supports passing an optional  list of permissions to [display a single ACL prompt](https://github.com/ipfs-shipyard/ipfs-companion/blob/master/docs/window.ipfs.md#do-i-need-to-confirm-every-api-call) the first time it is used:
+Tries to connect to HTTP API via [`js-ipfs-http-client`](https://github.com/ipfs/js-ipfs-http-client) with either a user provided `apiAddress`, the current origin, or `defaultApiAddress`.
+
+Value provided in `apiAddress`  can be:
+- a multiaddr (string like `/ip4/127.0.0.1/tcp/5001` or an [object](https://github.com/multiformats/js-multiaddr/))
+- a String with an URL (`https://example.com:8080/`)
+- a configuration object supported by [`js-ipfs-http-client`](https://github.com/ipfs/js-ipfs-http-client#importing-the-module-and-usage)
+
 
 ```js
 const { ipfs, provider } = await getIpfs({
-  tryWindow: true,
-  permissions: { commands: ['add','cat','id', 'version'] },
-  tryJsIpfs: true,
-...
+  providers: [
+    httpClient({
+      // defaults
+      defaultApiAddress: '/ip4/127.0.0.1/tcp/5001',
+      apiAddress: null
+    })
+  ]
+})
 ```
 
-**Note:**  Make sure to enable at least one other provider such as js-ipfs as a fallback to ensure users without `window.ipfs` are able to use your app.
+To try multiple endpoints, simply use this provider multiple times.  
+See [`examples/browser-browserify/src/index.js`](./examples/browser-browserify/src/index.js) for real world example.
 
+
+### `jsIpfs`
+
+Spawns embedded [`js-ipfs`](https://github.com/ipfs/js-ipfs) (full node in JavaScript)
+in the context of the current page using customizable constructor:
+
+```js
+const { ipfs, provider } = await getIpfs({
+  providers: [
+    jsIpfs({
+      // defaults
+      getConstructor: () => import('ipfs'),
+      options: { /* advanced config */ }
+    })
+  ]
+})
+```
+
+- `getConstructor` should be a function that returns a promise that resolves with a `JsIpfs` constructor.  
+   This works well with [dynamic `import()`](https://developers.google.com/web/updates/2017/11/dynamic-import), so you can lazily load js-ipfs when it is needed.
+- `options` should be an object which specifies [advanced configurations](https://github.com/ipfs/js-ipfs#ipfs-constructor) to the node.
+
+### `windowIpfs`
+
+[`window.ipfs`](https://github.com/ipfs-shipyard/ipfs-companion/blob/master/docs/window.ipfs.md) is created by [ipfs-companion](https://github.com/ipfs/ipfs-companion) browser extension.  
+It supports passing an optional list of permissions to [display a single ACL prompt](https://github.com/ipfs-shipyard/ipfs-companion/blob/master/docs/window.ipfs.md#do-i-need-to-confirm-every-api-call) the first time it is used:
+
+```js
+const { ipfs, provider } = await getIpfs({
+  providers: [
+    windowIpfs({
+      // example
+      permissions: { commands: ['add','cat','id', 'version'] }
+    })
+  ]
+})
+```
+
+### `webExt`
+
+`webExt` looks for an instance in the [background page of a WebExtension](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/extension/getBackgroundPage)  
+(useful only in browser extensions, not regular pages, disabled by default)
+
+```js
+const { ipfs, provider } = await getIpfs({
+  providers: [
+    webExt()
+  ]
+})
+```
+
+<!-- TODO: improve this API
+
+#### Creating a provider
+
+If built-in providers do not solve your use case, create your own!
+
+A provider is just a function that returns an async function that returns
+`{ ipfs, provider }`, but we provide `makeProvider` which enables `connectionTest`:
+
+```js
+const { getIpfs, makeProvider } = require('ipfs-provider')
+
+const customProvider = makeProvider(async ({ connectionTest }) => {
+  try {
+    const ipfs = // create IPFS API instance somehow
+    await connectionTest(ipfs)
+    return { ipfs, provider: 'customProvider' }
+  } catch (_) {
+    return null
+  }
+})
+
+const { ipfs, provider } = await getIpfs({
+  providers: [
+    customProvider()
+  ]
+})
+```
+
+-->
 
 ## Test
 
-```sh
-> npm test
+```console
+$ npm test
 ```
 
 ## Lint
 
 Perform [`standard`](https://standardjs.com/) linting on the code:
 
-```sh
-> npm run lint
+```console
+$ npm run lint
 ```
 
 ## Contribute
