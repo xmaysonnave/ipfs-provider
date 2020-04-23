@@ -1,8 +1,6 @@
 'use strict'
 /* global jest, describe, it, expect */
 
-const httpClient = require('ipfs-http-client')
-const root = require('window-or-global')
 const tryWebExt = require('../src/providers/webext.js')
 const tryWindow = require('../src/providers/window-ipfs.js')
 const tryHttpClient = require('../src/providers/http-client.js')
@@ -20,7 +18,7 @@ describe('getIpfs via availabe providers', () => {
     const res = await getIpfs({
       providers: [
         providers.jsIpfs({
-          getConstructor: () => { throw new Error('provider init failed') }
+          loadJsIpfsModule: () => { throw new Error('provider init failed') }
         })
       ]
     })
@@ -77,7 +75,7 @@ describe('getIpfs via availabe providers', () => {
     const { ipfs, provider } = await getIpfs({
       providers: [
         providers.jsIpfs({
-          getConstructor: jest.fn()
+          loadJsIpfsModule: jest.fn()
         })
       ]
     })

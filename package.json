@@ -1,10 +1,19 @@
 {
   "name": "ipfs-provider",
-  "version": "v0.2.9",
+  "version": "1.0.0",
   "description": "Connect to IPFS via an available provider",
   "main": "src/index.js",
+  "files": [
+    "src",
+    "dist"
+  ],
   "scripts": {
-    "lint": "standard ./src ./examples",
+    "lint": "aegir lint",
+    "release": "npm test && aegir release --test false",
+    "release-minor": "npm test && aegir release --type minor --test false",
+    "release-major": "npm test && aegir release --type major --test false",
+    "build": "aegir build",
+    "lint:fix": "standard --fix ./src/**.js ./test/**.js ./examples/**.js",
     "test": "jest --verbose ./test"
   },
   "repository": {
@@ -22,13 +31,18 @@
   },
   "homepage": "https://github.com/ipfs-shipyard/ipfs-provider#readme",
   "dependencies": {
-    "merge-options": "^2.0.0",
-    "window-or-global": "^1.0.1"
+    "iso-url": "~0.4.7",
+    "merge-options": "^2.0.0"
   },
   "devDependencies": {
-    "acorn": "^7.1.0",
-    "ipfs-http-client": "^40.1.0",
-    "jest": "^24.9.0",
-    "standard": "^14.3.1"
-  }
+    "aegir": "^21.9.0",
+    "ipfs-http-client": "^44.0.0",
+    "jest": "^25.4.0",
+    "standard": "^14.3.3"
+  },
+  "contributors": [
+    "Diogo Silva <fsdiogo@gmail.com>",
+    "Marcin Rataj <lidel@lidel.org>",
+    "Henrique Dias <hacdias@gmail.com>"
+  ]
 }
