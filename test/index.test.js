@@ -59,8 +59,6 @@ describe('getIpfs via availabe providers', () => {
     tryWebExt.mockResolvedValue(null)
     tryWindow.mockResolvedValue(null)
     tryHttpClient.mockResolvedValue(mockResult)
-    root.httpClient = httpClient
-    expect(root.httpClient).toBeDefined()
     const { ipfs, provider } = await getIpfs()
     expect(ipfs).toBeTruthy()
     expect(provider).toBe(mockResult.provider)
