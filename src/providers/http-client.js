@@ -63,9 +63,9 @@ async function maybeApi ({ apiAddress, connectionTest, httpClient }) {
     const ipfs = httpClient(apiAddress)
     await connectionTest(ipfs)
     return { ipfs, provider: PROVIDERS.httpClient, apiAddress }
-  } catch (error) {
+  } catch (err) {
     // Failed to connect to ipfs-api in `apiAddress`
-    // console.error('[ipfs-provider:httpClient]', error)
+    console.error('[ipfs-provider:httpClient]', err) // eslint-disable-line no-console
     return null
   }
 }
