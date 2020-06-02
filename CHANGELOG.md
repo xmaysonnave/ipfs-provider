@@ -1,3 +1,10 @@
+<a name="1.0.1"></a>
+# [1.0.1](https://github.com/xmaysonnave/ipfs-provider/compare/v1.0.0...v1.0.1) (2020-06-02)
+
+### Bug Fixes
+
+* Log error when http-client failed to maybeApi
+
 <a name="1.0.0"></a>
 # [1.0.0](https://github.com/ipfs-shipyard/ipfs-provider/compare/v0.2.2...v1.0.0) (2020-04-22)
 
